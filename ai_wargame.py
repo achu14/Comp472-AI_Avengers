@@ -257,7 +257,6 @@ class Game:
     stats: Stats = field(default_factory=Stats)
     _attacker_has_ai: bool = True
     _defender_has_ai: bool = True
-    game_trace: List[str] = field(default_factory=list)  # New attribute to store game events
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -276,16 +275,6 @@ class Game:
         self.set(Coord(md - 2, md), Unit(player=Player.Attacker, type=UnitType.Program))
         self.set(Coord(md, md - 2), Unit(player=Player.Attacker, type=UnitType.Program))
         self.set(Coord(md - 1, md - 1), Unit(player=Player.Attacker, type=UnitType.Firewall))
-
-        # Record the initial game parameters and board configuration
-        self.game_trace.append(
-            f"timeout: {'currently unimplemented'}")
-        self.game_trace.append(f"max number of turns: {self.options.max_turns}")
-        self.game_trace.append(f"alpha-beta: {'off' if self.options.alpha_beta else 'off'}")
-        self.game_trace.append(
-            f"player 1: {'Human'} & player 2: {'Human'}")
-        self.game_trace.append("Initial board configuration:")
-        self.game_trace.append(self.to_string())
 
     def clone(self) -> Game:
         """Make a new copy of a game for minimax recursion.
@@ -448,11 +437,7 @@ class Game:
         self.remove_dead(coords.src)
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
-        # Record the action at the start
-        self.game_trace.append(f"turn #{self.turns_played + 1}")
-        self.game_trace.append(f"{self.next_player.name}")
-        self.game_trace.append(f"move from {coords.src.to_string()} to {coords.dst.to_string()}")
-
+        ...
         if self.is_valid_move(coords):
             moving_unit = self.get(coords.src)
             target_unit = self.get(coords.dst)
@@ -484,7 +469,7 @@ class Game:
                 # If it's a friendly unit, repair if move is valid
                 else:
                     repair = moving_unit.repair_amount(target_unit)
-                    print(f"Repair amount: {repair}")  # Debug print
+                    print(f"Repair amount: " + str(repair))  # Debug print
                     print(f"Target unit health before: {target_unit.health}")  # Debug print
                     self.mod_health(coords.dst, +repair)
                     print(f"Target unit health after: {target_unit.health}")  # Debug print
@@ -494,10 +479,7 @@ class Game:
                 # not alive or if there's no unit at the destination
                 self.set(coords.dst, moving_unit)
                 self.set(coords.src, None)
-            if self.is_finished():
-                self.game_trace.append("New board configuration:")
-                self.game_trace.append(self.to_string())
-                return True, ""
+            return True, ""
         return False, "invalid move"
 
     def next_turn(self):
@@ -597,33 +579,26 @@ class Game:
             if unit is not None and unit.player == player:
                 yield (coord, unit)
 
-    def write_game_trace_to_file(self, filename: str):
-        with open(filename, 'w') as file:
-            for line in self.game_trace:
-                file.write(line + "\n")
-
     def is_finished(self) -> bool:
         # Game ends if 100 moves have been played or if any AI is destroyed
         if self.turns_played >= 100:
             print("Max number of turns (100) has passed")
-        return self.turns_played >= 2 or not self._attacker_has_ai or not self._defender_has_ai
+        return self.turns_played >= 100 or not self._attacker_has_ai or not self._defender_has_ai
 
     def has_winner(self) -> Player | None:
         """Determines if there's a winner and returns the winner."""
         # If the game hasn't reached its end conditions yet, return None
         if not self.is_finished():
             return None
+
         # Check if the attacker's AI is destroyed
         if not self._attacker_has_ai:
-            self.game_trace.append(f"{Player.Defender.name} wins in {self.turns_played} turns")
             return Player.Defender
         # Check if the defender's AI is destroyed
         elif not self._defender_has_ai:
-            self.game_trace.append(f"{Player.Attacker.name} wins in {self.turns_played} turns")
             return Player.Attacker
         # If neither AI is destroyed and 10 turns have been played, the defender wins
         else:
-            self.game_trace.append(f"{Player.Defender.name} wins because max turns (100) have passed")
             return Player.Defender
 
     def move_candidates(self) -> Iterable[CoordPair]:
@@ -727,15 +702,7 @@ def main():
     parser.add_argument('--max_turns', type=float, help='maximum number of turn for a game')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
-    parser.add_argument('--alpha_beta', type=bool, default=False, help='use alpha-beta pruning')
     args = parser.parse_args()
-
-    # Construct the file name
-    b_value = str(args.alpha_beta).lower()
-    t_value = str(args.max_time) if args.max_time else 'off'
-    m_value = str(args.max_turns) if args.max_turns else '100'
-
-    file_name = f"gameTrace-{b_value}-{t_value}-{m_value}.txt"
 
     # parse the game type
     if args.game_type == "attacker":
@@ -785,9 +752,6 @@ def main():
             else:
                 print("Computer doesn't know what to do!!!")
                 exit(1)
-
-    game.write_game_trace_to_file(file_name)
-
 
 
 ##############################################################################################################
