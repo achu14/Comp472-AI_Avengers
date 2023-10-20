@@ -304,7 +304,6 @@ class Game:
     def remove_dead(self, coord: Coord):
         """Remove unit at Coord if dead."""
         unit = self.get(coord)
-        self.set(coord, None)
         if unit is not None and not unit.is_alive():
             self.set(coord, None)
             if unit.type == UnitType.AI:
@@ -338,29 +337,40 @@ class Game:
                 self.can_dst_unit_be_targeted(unit, dst)  # Can the unit on the destination square be targeted
         )
 
+        if not isValid:
+            print(f"Move is not valid: {mv.to_string()}")
+
         return isValid
 
     def is_dst_valid_square(self, unit: Unit, src: Coord, dst: Coord) -> bool:
+        if src.row == dst.row and src.col == dst.col:  # If self destruct, valid move.
+            return True
+
         if self.is_unit_tech_or_virus(unit):  # Virus and tech can move in all directions
-            return (
-                    src.row == dst.row + 1 and src.col == dst.col or
-                    dst.col == src.col + 1 or src.row == dst.row or
-                    src.row + 1 == dst.row and src.col == dst.col or
-                    dst.col == src.col + 1 and src.row == dst.row
-            )
+            sameCol = (src.col == dst.col);
+            sameRow = (src.row == dst.row);
+           
+            oneSquareUp = (src.row == dst.row) + 1 and sameCol;
+            oneSquareDown = (src.row + 1 == dst.row) and sameCol;
+            oneSquareLeft = (dst.col == src.col + 1) and sameRow;
+            oneSquareRight = (src.col == dst.col + 1) and sameRow;
+
+            up = oneSquareUp and sameCol
+            down = oneSquareDown and sameCol
+            left = oneSquareLeft and sameRow
+            right = oneSquareRight and sameRow
+
+            return up or down or left or right 
 
         player = unit.player
         if player == Player.Attacker:
-            if src.row == dst.row and src.col == dst.col:  # If self destruct, valid move.
-                return True
+            
             # If source is an attacker, then it can only move up or left
             if (src.row == dst.row + 1 and src.col == dst.col) or \
                     (src.col == dst.col + 1 and src.row == dst.row):
                 return True
             return False
         else:
-            if src.row == dst.row and src.col == dst.col:  # If self destruct, valid move.
-                return True
             # If source is a defender, then it can only move down or right
             if (src.row + 1 == dst.row and src.col == dst.col) or \
                     (dst.col == src.col + 1 and src.row == dst.row):
@@ -529,6 +539,8 @@ class Game:
         """Read a move from keyboard and return as a CoordPair."""
         while True:
             s = input(F'Player {self.next_player.name}, enter your move: ')
+            if s == "r": # type "r" for random move 
+                return self.random_move(no_self_destruct=True)[1]
             coords = CoordPair.from_string(s)
             if coords is not None and self.is_valid_coord(coords.src) and self.is_valid_coord(coords.dst):
                 return coords
@@ -604,7 +616,8 @@ class Game:
     def move_candidates(self) -> Iterable[CoordPair]:
         """Generate valid move candidates for the next player."""
         move = CoordPair()
-        for (src, _) in self.player_units(self.next_player):
+        player_units = self.player_units(self.next_player);
+        for (src, _) in player_units:
             move.src = src
             for dst in src.iter_adjacent():
                 move.dst = dst
@@ -613,9 +626,11 @@ class Game:
             move.dst = src
             yield move.clone()
 
-    def random_move(self) -> Tuple[int, CoordPair | None, float]:
+    def random_move(self, no_self_destruct: bool = False) -> Tuple[int, CoordPair | None, float]:
         """Returns a random move."""
         move_candidates = list(self.move_candidates())
+        if no_self_destruct:
+            move_candidates = [move for move in move_candidates if move.src != move.dst]
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
             return (0, move_candidates[0], 1)
