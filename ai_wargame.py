@@ -9,6 +9,8 @@ from time import sleep
 from typing import Tuple, TypeVar, Type, Iterable, ClassVar, Union
 import random
 import requests
+from collections import deque
+
 
 # maximum and minimum values for our heuristic scores (usually represents an end of game condition)
 MAX_HEURISTIC_SCORE = 2000000000
@@ -250,6 +252,7 @@ class Stats:
 @dataclass(slots=True)
 class Game:
     """Representation of the game state."""
+    debug: bool = False
     board: list[list[Unit | None]] = field(default_factory=list)
     next_player: Player = Player.Attacker
     turns_played: int = 0
@@ -281,7 +284,7 @@ class Game:
 
         Shallow copy of everything except the board (options and stats are shared).
         """
-        new = copy.copy(self)
+        new = copy.deepcopy(self)
         new.board = copy.deepcopy(self.board)
         return new
 
@@ -304,7 +307,6 @@ class Game:
     def remove_dead(self, coord: Coord):
         """Remove unit at Coord if dead."""
         unit = self.get(coord)
-        self.set(coord, None)
         if unit is not None and not unit.is_alive():
             self.set(coord, None)
             if unit.type == UnitType.AI:
@@ -332,35 +334,49 @@ class Game:
         if unit is None or unit.player != self.next_player:
             return False
 
+        if self.is_self_destruct_move(src, dst):
+            return True
+
         isValid = (
                 self.is_dst_valid_square(unit, src, dst) and  # Is the destination square a valid square to move to
                 self.is_moving_unit_allowed_to_move(unit, src, dst) and # Is the unit allowed to move to the destination square
                 self.can_dst_unit_be_targeted(unit, dst)  # Can the unit on the destination square be targeted
         )
 
+        if not isValid:
+            self.log(f"Move is not valid: {mv.to_string()}")
+
         return isValid
+    
+    def is_self_destruct_move(self, src: Coord, dst: Coord) -> bool:
+        return src.row == dst.row and src.col == dst.col
 
     def is_dst_valid_square(self, unit: Unit, src: Coord, dst: Coord) -> bool:
         if self.is_unit_tech_or_virus(unit):  # Virus and tech can move in all directions
-            return (
-                    src.row == dst.row + 1 and src.col == dst.col or
-                    dst.col == src.col + 1 or src.row == dst.row or
-                    src.row + 1 == dst.row and src.col == dst.col or
-                    dst.col == src.col + 1 and src.row == dst.row
-            )
+            sameCol = (src.col == dst.col);
+            sameRow = (src.row == dst.row);
+           
+            oneSquareUp = src.row == dst.row + 1 and sameCol;
+            oneSquareDown = (src.row + 1 == dst.row) and sameCol;
+            oneSquareLeft = (dst.col == src.col + 1) and sameRow;
+            oneSquareRight = (src.col == dst.col + 1) and sameRow;
+
+            up = oneSquareUp and sameCol
+            down = oneSquareDown and sameCol
+            left = oneSquareLeft and sameRow
+            right = oneSquareRight and sameRow
+
+            return up or down or left or right 
 
         player = unit.player
         if player == Player.Attacker:
-            if src.row == dst.row and src.col == dst.col:  # If self destruct, valid move.
-                return True
+            
             # If source is an attacker, then it can only move up or left
             if (src.row == dst.row + 1 and src.col == dst.col) or \
                     (src.col == dst.col + 1 and src.row == dst.row):
                 return True
             return False
         else:
-            if src.row == dst.row and src.col == dst.col:  # If self destruct, valid move.
-                return True
             # If source is a defender, then it can only move down or right
             if (src.row + 1 == dst.row and src.col == dst.col) or \
                     (dst.col == src.col + 1 and src.row == dst.row):
@@ -371,6 +387,9 @@ class Game:
         if self.is_unit_tech_or_virus(unit):  # Tech or virus can't be engaged in combat
             return True
 
+        dst_unit = self.get(dst)
+        if dst_unit is not None:
+            return True  # If there's a unit on the destination square, can target
         adjacent_units: List[Union[Unit, None]] = self.get_adjacent_units(src, dst)
 
         for au in adjacent_units:
@@ -380,9 +399,6 @@ class Game:
         return True
 
     def can_dst_unit_be_targeted(self, unit: Unit, dst: Coord) -> bool:
-        src_unit = self.get(dst)
-        if src_unit and src_unit.player == unit.player and src_unit.type == unit.type:
-            return True  # Allow self-destruct actions
 
         target_unit: Unit = self.board[dst.row][dst.col]
         if target_unit is None:
@@ -442,8 +458,8 @@ class Game:
             moving_unit = self.get(coords.src)
             target_unit = self.get(coords.dst)
 
-            print(f"Moving unit: {moving_unit}")  # Debug print
-            print(f"Target unit: {target_unit}")  # Debug print
+            self.log(f"Moving unit: {moving_unit}")  # Debug print
+            self.log(f"Target unit: {target_unit}")  # Debug print
 
             # If the source and destination are the same (self-destruct)
             if coords.src == coords.dst:
@@ -454,25 +470,25 @@ class Game:
                 if target_unit.player != moving_unit.player:
                     damage = moving_unit.damage_amount(target_unit)
 
-                    print(f"Calculated damage: {damage}")  # Debug print
+                    self.log(f"Calculated damage: {damage}")  # Debug print
 
                     # Reduce health of the target unit
-                    print(f"Target unit health before: {target_unit.health}")  # Debug print
+                    self.log(f"Target unit health before: {target_unit.health}")  # Debug print
                     self.mod_health(coords.dst, -damage)
-                    print(f"Target unit health after: {target_unit.health}")  # Debug print
+                    self.log(f"Target unit health after: {target_unit.health}")  # Debug print
 
                     # Reduce health of the attacking unit
-                    print(f"Moving unit health before: {moving_unit.health}")  # Debug print
+                    self.log(f"Moving unit health before: {moving_unit.health}")  # Debug print
                     self.mod_health(coords.src, -damage)
-                    print(f"Moving unit health after: {moving_unit.health}")  # Debug print
+                    self.log(f"Moving unit health after: {moving_unit.health}")  # Debug print
 
                 # If it's a friendly unit, repair if move is valid
                 else:
                     repair = moving_unit.repair_amount(target_unit)
-                    print(f"Repair amount: " + str(repair))  # Debug print
-                    print(f"Target unit health before: {target_unit.health}")  # Debug print
+                    self.log(f"Repair amount: " + str(repair))  # Debug print
+                    self.log(f"Target unit health before: {target_unit.health}")  # Debug print
                     self.mod_health(coords.dst, +repair)
-                    print(f"Target unit health after: {target_unit.health}")  # Debug print
+                    self.log(f"Target unit health after: {target_unit.health}")  # Debug print
 
             else:
                 # Move the unit to the destination if the target unit is
@@ -529,22 +545,24 @@ class Game:
         """Read a move from keyboard and return as a CoordPair."""
         while True:
             s = input(F'Player {self.next_player.name}, enter your move: ')
+            if s == "m":
+                return self.suggest_move()
             coords = CoordPair.from_string(s)
             if coords is not None and self.is_valid_coord(coords.src) and self.is_valid_coord(coords.dst):
                 return coords
             else:
-                print('Invalid coordinates! Try again.')
+                self.log('Invalid coordinates! Try again.')
 
     def human_turn(self):
         """Human player plays a move (or get via broker)."""
         if self.options.broker is not None:
-            print("Getting next move with auto-retry from game broker...")
+            self.log("Getting next move with auto-retry from game broker...")
             while True:
                 mv = self.get_move_from_broker()
                 if mv is not None:
                     (success, result) = self.perform_move(mv)
-                    print(f"Broker {self.next_player.name}: ", end='')
-                    print(result)
+                    self.log(f"Broker {self.next_player.name}: ")
+                    self.log(result)
                     if success:
                         self.next_turn()
                         break
@@ -554,12 +572,12 @@ class Game:
                 mv = self.read_move()
                 (success, result) = self.perform_move(mv)
                 if success:
-                    print(f"Player {self.next_player.name}: ", end='')
-                    print(result)
+                    self.log(f"Player {self.next_player.name}: ")
+                    self.log(result)
                     self.next_turn()
                     break
                 else:
-                    print("The move is not valid! Try again.")
+                    self.log("The move is not valid! Try again.")
 
     def computer_turn(self) -> CoordPair | None:
         """Computer plays a move."""
@@ -567,8 +585,8 @@ class Game:
         if mv is not None:
             (success, result) = self.perform_move(mv)
             if success:
-                print(f"Computer {self.next_player.name}: ", end='')
-                print(result)
+                self.log(f"Computer {self.next_player.name}: ")
+                self.log(result)
                 self.next_turn()
         return mv
 
@@ -582,7 +600,7 @@ class Game:
     def is_finished(self) -> bool:
         # Game ends if 100 moves have been played or if any AI is destroyed
         if self.turns_played >= 100:
-            print("Max number of turns (100) has passed")
+            self.log("Max number of turns (100) has passed")
         return self.turns_played >= 100 or not self._attacker_has_ai or not self._defender_has_ai
 
     def has_winner(self) -> Player | None:
@@ -604,7 +622,9 @@ class Game:
     def move_candidates(self) -> Iterable[CoordPair]:
         """Generate valid move candidates for the next player."""
         move = CoordPair()
-        for (src, _) in self.player_units(self.next_player):
+
+        player_units = self.player_units(self.next_player);
+        for (src, _) in player_units:
             move.src = src
             for dst in src.iter_adjacent():
                 move.dst = dst
@@ -613,9 +633,11 @@ class Game:
             move.dst = src
             yield move.clone()
 
-    def random_move(self) -> Tuple[int, CoordPair | None, float]:
+    def random_move(self, no_self_destruct: bool = False) -> Tuple[int, CoordPair | None, float]:
         """Returns a random move."""
         move_candidates = list(self.move_candidates())
+        if no_self_destruct:
+            move_candidates = [move for move in move_candidates if move.src != move.dst]
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
             return (0, move_candidates[0], 1)
@@ -623,22 +645,229 @@ class Game:
             return (0, None, 0)
 
     def suggest_move(self) -> CoordPair | None:
-        """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
+        """Suggest the next move using minimax alpha beta."""
         start_time = datetime.now()
-        (score, move, avg_depth) = self.random_move()
+        move = self.get_best_move()
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
-        print(f"Heuristic score: {score}")
-        print(f"Average recursive depth: {avg_depth:0.1f}")
-        print(f"Evals per depth: ", end='')
-        for k in sorted(self.stats.evaluations_per_depth.keys()):
-            print(f"{k}:{self.stats.evaluations_per_depth[k]} ", end='')
-        print()
-        total_evals = sum(self.stats.evaluations_per_depth.values())
-        if self.stats.total_seconds > 0:
-            print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
-        print(f"Elapsed time: {elapsed_seconds:0.1f}s")
+        # print(f"Heuristic score: {score}")
+        # print(f"Average recursive depth: {avg_depth:0.1f}")
+        # print(f"Evals per depth: ", end='')
+        # for k in sorted(self.stats.evaluations_per_depth.keys()):
+        #     print(f"{k}:{self.stats.evaluations_per_depth[k]} ", end='')
+        # print()
+        # total_evals = sum(self.stats.evaluations_per_depth.values())
+        # if self.stats.total_seconds > 0:
+        #     print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
+        # print(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
+    
+    def get_best_move(self) -> CoordPair | None:
+        """Suggest the next move using minimax alpha-beta pruning."""
+        start_time = datetime.now()
+        isMaximizingPlayer = self.next_player == Player.Attacker
+        isMinimizingPlayer = not isMaximizingPlayer
+        best_move = None
+        worst_move = None
+        best_score = MIN_HEURISTIC_SCORE if isMaximizingPlayer else MAX_HEURISTIC_SCORE
+        worst_score = MAX_HEURISTIC_SCORE if isMaximizingPlayer else MIN_HEURISTIC_SCORE
+        max_depth = 4  # Adjust this depth based on your game's complexity
+       
+        for move in self.move_candidates():  # Implement this function to get available moves
+            # Call the minimax function for each possible move
+            new_state = self.clone()
+            new_state.perform_move(move)
+            score = self.minimax(new_state, max_depth, isMinimizingPlayer, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE)
+            if isMaximizingPlayer and score > best_score:
+                best_score = score
+                best_move = move
+            elif not isMaximizingPlayer and score < best_score:
+                best_score = score
+                best_move = move
+
+            if isMaximizingPlayer and score < worst_score:
+                worst_score = score
+                worst_move = move
+            elif not isMaximizingPlayer and score > worst_score:
+                worst_score = score
+                worst_move = move
+
+        elapsed_seconds = (datetime.now() - start_time).total_seconds()
+        # Print any relevant statistics or debugging information
+        print(f"Best move: {best_move}")
+        print(f"Best score: {best_score}")
+
+        print(f"Worst move: {worst_move}")
+        print(f"Worst score: {worst_score}")
+        return best_move
+    
+
+    def minimax(self, state : Game, depth : int, maximizing_player : bool, alpha : int, beta : int):
+        if depth == 0 or state.is_finished():
+            return state.evaluate()
+        
+        playerTurn = Player.Attacker if maximizing_player else Player.Defender
+
+        if maximizing_player:
+            best_value = MIN_HEURISTIC_SCORE
+            for move in state.move_candidates():
+                new_state = state.clone()
+                new_state.next_player = playerTurn
+                new_state.perform_move(move)
+                value = self.minimax(new_state, depth - 1, False, alpha, beta)
+                best_value = max(best_value, value)
+                alpha = max(alpha, best_value)
+                if beta <= alpha:
+                    break  # Alpha-beta pruning
+            return best_value
+        else:
+            best_value = MAX_HEURISTIC_SCORE
+            for move in state.move_candidates():
+                new_state = state.clone()
+                new_state.next_player = playerTurn
+                new_state.perform_move(move)
+                value = self.minimax(new_state, depth - 1, True, alpha, beta)
+                best_value = min(best_value, value)
+                beta = min(beta, best_value)
+                if beta <= alpha:
+                    break  # Alpha-beta pruning
+            return best_value
+        
+    def evaluate(self) -> int:
+        attacker_ai = None
+        defender_ai = None
+
+        # Find the AI units for both players
+        for coord, unit in self.player_units(Player.Attacker):
+            if unit.type == UnitType.AI:
+                attacker_ai = unit
+
+        for coord, unit in self.player_units(Player.Defender):
+            if unit.type == UnitType.AI:
+                defender_ai = unit
+
+        if attacker_ai is None or defender_ai is None:
+            # The AI units are not on the board; the game is over
+            return MAX_HEURISTIC_SCORE if attacker_ai else -MAX_HEURISTIC_SCORE
+        
+        weights = {
+            "ai_healths_score": 5,
+            "moves_for_virus_to_reach_ai": 5,
+            "total_units_health": 1,
+            "end_of_game_score": 1
+        }
+
+        moves_for_virus_to_reach_ai_score = self.moves_for_virus_to_reach_ai()
+        ai_healths_score = self.calculate_ai_healths_score(attacker_ai, defender_ai)
+        total_units_health_score = self.calculate_total_units_health_score(attacker_ai, defender_ai)
+        end_of_game_score = self.calculate_end_of_game_score()
+
+        # Combine scores with weights
+        total_score = (
+            weights["total_units_health"] * total_units_health_score + 
+            weights["moves_for_virus_to_reach_ai"] * moves_for_virus_to_reach_ai_score + 
+            weights["ai_healths_score"] * ai_healths_score + 
+            weights["end_of_game_score"] * end_of_game_score
+        )
+
+
+        return total_score
+    
+    def calculate_end_of_game_score(self) -> int:
+        # Calculate the heuristic score based on the end of the game
+        winner = self.has_winner()
+
+        if winner == Player.Attacker:
+            return MAX_HEURISTIC_SCORE
+        elif winner == Player.Defender:
+            return -MAX_HEURISTIC_SCORE
+        else:
+            return 0
+    
+    def calculate_total_units_health_score(self, attacker_ai: Unit, defender_ai: Unit) -> int:
+        # Calculate the heuristic score based on the total health of units
+        attacker_health = 0
+        defender_health = 0
+
+
+        for coord, unit in self.player_units(Player.Attacker):
+            attacker_health += unit.health
+
+        for coord, unit in self.player_units(Player.Defender):
+            defender_health += unit.health
+
+        score = attacker_health - defender_health
+
+        return score
+    
+    def calculate_ai_healths_score(self, attacker_ai: Unit, defender_ai: Unit) -> int:
+        # Calculate the heuristic score based on the health of AI units
+        attacker_ai_health = attacker_ai.health
+        defender_ai_health = defender_ai.health
+
+        # You can adjust these weights based on the importance of AI health
+        # in your game's strategy
+        attacker_weight = 1
+        defender_weight = 1
+
+        score = attacker_ai_health - defender_ai_health
+
+        return score
+    
+    def moves_for_virus_to_reach_ai(self) -> int:
+        # Find the positions of the Virus and the defender's AI
+        virus_position = None
+        defender_ai_position = None
+
+        for coord, unit in self.player_units(Player.Defender):
+            if unit.type == UnitType.Virus:
+                virus_position = coord
+            elif unit.type == UnitType.AI:
+                defender_ai_position = coord
+
+        if virus_position is None:
+            return -5
+
+        # Calculate the distance between the Virus and the AI using your calculate_distance function
+        distance = self.shortest_distance(virus_position, defender_ai_position)
+
+        if distance == -1:
+            return -5
+        
+        # Calculate the score based on the number of moves required
+        score = 5 - distance
+
+        return score
+    
+    def shortest_distance(self, start, end):
+        # Define the possible movements: up, down, left, right
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        rows, cols = len(self.board), len(self.board[0])
+
+        # Create a visited set to keep track of visited cells
+        visited = set()
+
+        # Create a queue for BFS
+        queue = deque([(start, 0)])
+
+        while queue:
+            (x, y), distance = queue.popleft()
+
+            if (x, y) == end:
+                return distance
+
+            for dx, dy in directions:
+                new_x, new_y = x + dx, y + dy
+
+                # Check if the new position is valid and not visited
+                if 0 <= new_x < rows and 0 <= new_y < cols and grid[new_x][new_y] == 0 and (new_x, new_y) not in visited:
+                    queue.append(((new_x, new_y), distance + 1))
+                    visited.add((new_x, new_y))
+
+        # If the end point is not reachable, return a large distance (or -1 to indicate unreachable)
+        return -1
+    
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
@@ -688,6 +917,12 @@ class Game:
         except Exception as error:
             print(f"Broker error: {error}")
         return None
+    
+    def log(self, *args):
+        """Log a message to the console."""
+        if self.debug:
+            print(*args)
+
 
 
 ##############################################################################################################
@@ -705,14 +940,16 @@ def main():
     args = parser.parse_args()
 
     # parse the game type
-    if args.game_type == "attacker":
-        game_type = GameType.AttackerVsComp
-    elif args.game_type == "defender":
-        game_type = GameType.CompVsDefender
-    elif args.game_type == "manual":
-        game_type = GameType.AttackerVsDefender
-    else:
-        game_type = GameType.CompVsComp
+    # if args.game_type == "attacker":
+    #     game_type = GameType.AttackerVsComp
+    # elif args.game_type == "defender":
+    #     game_type = GameType.CompVsDefender
+    # elif args.game_type == "manual":
+    #     game_type = GameType.AttackerVsDefender
+    # else:
+    #     game_type = GameType.AttackerVsDefender
+
+    game_type = GameType.AttackerVsComp
 
     # set up game options
     options = Options(game_type=game_type)
