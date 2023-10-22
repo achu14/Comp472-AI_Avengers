@@ -333,7 +333,8 @@ class Game:
 
         isValid = (
                 self.is_dst_valid_square(unit, src, dst) and  # Is the destination square a valid square to move to
-                self.is_moving_unit_allowed_to_move(unit, src, dst) and # Is the unit allowed to move to the destination square
+                self.is_moving_unit_allowed_to_move(unit, src,
+                                                    dst) and  # Is the unit allowed to move to the destination square
                 self.can_dst_unit_be_targeted(unit, dst)  # Can the unit on the destination square be targeted
         )
 
@@ -349,7 +350,7 @@ class Game:
         if self.is_unit_tech_or_virus(unit):  # Virus and tech can move in all directions
             sameCol = (src.col == dst.col);
             sameRow = (src.row == dst.row);
-           
+
             oneSquareUp = (src.row == dst.row) + 1 and sameCol;
             oneSquareDown = (src.row + 1 == dst.row) and sameCol;
             oneSquareLeft = (dst.col == src.col + 1) and sameRow;
@@ -360,11 +361,11 @@ class Game:
             left = oneSquareLeft and sameRow
             right = oneSquareRight and sameRow
 
-            return up or down or left or right 
+            return up or down or left or right
 
         player = unit.player
         if player == Player.Attacker:
-            
+
             # If source is an attacker, then it can only move up or left
             if (src.row == dst.row + 1 and src.col == dst.col) or \
                     (src.col == dst.col + 1 and src.row == dst.row):
@@ -539,7 +540,7 @@ class Game:
         """Read a move from keyboard and return as a CoordPair."""
         while True:
             s = input(F'Player {self.next_player.name}, enter your move: ')
-            if s == "r": # type "r" for random move 
+            if s == "r":  # type "r" for random move
                 return self.random_move(no_self_destruct=True)[1]
             coords = CoordPair.from_string(s)
             if coords is not None and self.is_valid_coord(coords.src) and self.is_valid_coord(coords.dst):
@@ -654,6 +655,133 @@ class Game:
             print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
         print(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
+
+    def heuristic_e1(self, player):
+        """ Calculates the heuristic value for e1. """
+        # weights for our heuristic components
+        w1, w2, w3, w4, w5 = 1000, 3, -5, 20, 99999999999999
+
+        # Unit-specific weights for board control factor
+        unit_weights = {
+            "Program": 1,
+            "Firewall": 1,
+            "Tech": 3,
+            "Virus": 3,
+            "AI": 100
+        }
+
+        # Extract units and their positions from the board
+        units_with_positions = [(cell, (x, y)) for x, row in enumerate(self.board) for y, cell in enumerate(row) if
+                                cell is not None]
+
+        # Get the health and position of our AI and the opponent's AI
+        our_ai = next((unit for unit in units_with_positions if unit[0].type == "AI" and unit[0].player == player),
+                      None)
+        opponent_ai = next((unit for unit in units_with_positions if unit[0].type == "AI" and unit[0].player != player),
+                           None)
+
+        our_ai_health = our_ai[0].health if our_ai else 0
+        opponent_ai_health = opponent_ai[0].health if opponent_ai else 0
+        our_ai_position = our_ai[1] if our_ai else None
+        opponent_ai_position = opponent_ai[1] if opponent_ai else None
+
+        # [w1] AI Health Factor
+        # Shows the difference in health between current player's AI and the opponent's AI.
+        h_ai = our_ai_health - opponent_ai_health
+
+        # [w2] Board Control Factor with adjusted unit weights
+        # Evaluates the overall strength and presence of current player's units versus the opponent's on the board.
+        our_units_value = sum(
+            unit_weights[unit.type] * unit.health for unit, _ in units_with_positions if unit.player == player)
+        opponent_units_value = sum(
+            unit_weights[unit.type] * unit.health for unit, _ in units_with_positions if unit.player != player)
+        h_control = our_units_value - opponent_units_value
+
+        # [w3] Virus(es) near AI Factor
+        # Penalizes based on the number of enemy Virus units adjacent to our AI, emphasizing immediate threats.
+        our_ai_positions = [pos for unit, pos in units_with_positions if unit.type == "AI" and unit.player == player]
+        our_ai_position = our_ai_positions[0] if our_ai_positions else None
+        enemy_ai_position = [pos for unit, pos in units_with_positions if unit.type == "AI" and unit.player != player]
+        enemy_ai_position = enemy_ai_position[0] if enemy_ai_position else None
+
+        # Check if two board positions are adjacent to each other (horizontally or vertically).
+        def is_adjacent(pos1, pos2):
+            return abs(pos1[0] - pos2[0]) <= 1 and abs(pos1[1] - pos2[1]) <= 1
+
+        # Counts the number of enemy Virus units adjacent to current player's AI, emphasizing immediate threats.
+        bad_virus_near_ai = sum(1 for unit, pos in units_with_positions if
+                                unit.player != player and unit.type == "Virus" and our_ai_position and is_adjacent(
+                                    our_ai_position, pos))
+
+        # Counts the number of friendly Virus units adjacent to opponent's AI, emphasizing immediate adjacency.
+        good_virus_near_ai = -sum(1 for unit, pos in units_with_positions if
+                                  unit.player == player and unit.type == "Virus" and enemy_ai_position and is_adjacent(
+                                      our_ai_position, pos))
+
+        # If Player is attacker the effect is positive, if Defender it is negative
+        if player == Player.Attacker:
+            virus_near_ai = good_virus_near_ai
+        else:
+            virus_near_ai = bad_virus_near_ai
+
+        # [w4] Tech Support Factor
+        # Reward positions where a friendly Tech is near the current player's AI if its health is low
+        # Additional bonus if the Tech is near when the threat of a Virus attack is high
+        our_ai_low_health = our_ai_health <= 7
+        tech_supporting_ai = any(
+            unit.type == "Tech" and unit.player == player and is_adjacent(our_ai_position, pos) for unit, pos in
+            units_with_positions)
+
+        # Compute the tech support heuristic component using w4
+        h_tech_support = w4 if our_ai_low_health and tech_supporting_ai else 0
+
+        # Adjust the tech support heuristic component [potential threat factor] if h_threat is high
+        if virus_near_ai >= 1:
+            h_tech_support += w4
+
+        # [w5] Victory Factor
+        # Gives near infinity bonus if current player's AI is alive and opponent's AI is defeated
+        our_ai_alive = any(unit.type == "AI" and unit.player == player for unit, _ in units_with_positions)
+        opponent_ai_defeated = not any(unit.type == "AI" and unit.player != player for unit, _ in units_with_positions)
+        h_victory = w5 if our_ai_alive and opponent_ai_defeated else 0
+
+        # The heuristic value for e1
+        e1 = w1 * h_ai + w2 * h_control + w3 * virus_near_ai + h_tech_support + h_victory
+
+        return e1
+
+    def heuristic_e0(self):
+        """ Calculates the heuristic value for e0. """
+        # e0 = (3VP1 + 3TP1 + 3FP1 + 3PP1 + 9999AIP1) − (3VP2 + 3TP2 + 3FP2 + 3PP2 + 9999AIP2)
+
+        # Weights for each unit type
+        unit_weights = {
+            "Program": 3,
+            "Firewall": 3,
+            "Tech": 3,
+            "Virus": 3,
+            "AI": 9999
+        }
+
+        # Initialize player scores
+        p1_score = 0
+        p2_score = 0
+
+        # Extract units from the board and put them in units list
+        units = [cell for row in self.board for cell in row if cell is not None]
+
+        # Calculate scores based on unit types and weights
+        for unit in units:
+            weight = unit_weights[unit.type]
+            if unit.player == Player.Attacker:  # Attacker represents player 1 (P1)
+                p1_score += weight
+            else:  # Defender represents player 2 (P2)
+                p2_score += weight
+
+        # The heuristic value for e0
+        e0 = p1_score - p2_score
+
+        return e0
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
