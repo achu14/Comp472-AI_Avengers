@@ -1,0 +1,619 @@
+timeout: currently unimplemented
+max number of turns: 100
+alpha-beta: on
+player 1: Computer & player 2: Computer
+Initial board configuration:
+Next player: Attacker
+Turns played: 0
+
+    0   1   2   3   4  
+A: dA9 dT9 dF9  .   .  
+B: dT9 dP9  .   .   .  
+C: dF9  .   .   .  aP9 
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: C4 B4
+Best score: 0
+Worst move: E4 E4
+Worst score: -2742
+
+turn #1
+Attacker
+move from C4 to B4
+New board configuration:
+Next player: Attacker
+Turns played: 0
+
+    0   1   2   3   4  
+A: dA9 dT9 dF9  .   .  
+B: dT9 dP9  .   .  aP9 
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A2 B2
+Best score: 0
+Worst move: A0 A0
+Worst score: 2742
+
+turn #2
+Defender
+move from A2 to B2
+New board configuration:
+Next player: Defender
+Turns played: 1
+
+    0   1   2   3   4  
+A: dA9 dT9  .   .   .  
+B: dT9 dP9 dF9  .  aP9 
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: B4 A4
+Best score: 0
+Worst move: E4 E4
+Worst score: -2742
+
+turn #3
+Attacker
+move from B4 to A4
+New board configuration:
+Next player: Attacker
+Turns played: 2
+
+    0   1   2   3   4  
+A: dA9 dT9  .   .  aP9 
+B: dT9 dP9 dF9  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: 0
+Worst move: A0 A0
+Worst score: 2742
+
+turn #4
+Defender
+move from A1 to A2
+New board configuration:
+Next player: Defender
+Turns played: 3
+
+    0   1   2   3   4  
+A: dA9  .  dT9  .  aP9 
+B: dT9 dP9 dF9  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A4 A3
+Best score: 0
+Worst move: E4 E4
+Worst score: -2742
+
+turn #5
+Attacker
+move from A4 to A3
+New board configuration:
+Next player: Attacker
+Turns played: 4
+
+    0   1   2   3   4  
+A: dA9  .  dT9 aP9  .  
+B: dT9 dP9 dF9  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A0 A1
+Best score: 0
+Worst move: A0 A0
+Worst score: 2724
+
+turn #6
+Defender
+move from A0 to A1
+New board configuration:
+Next player: Defender
+Turns played: 5
+
+    0   1   2   3   4  
+A:  .  dA9 dT9 aP9  .  
+B: dT9 dP9 dF9  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A3 A2
+Best score: 18
+Worst move: E4 E4
+Worst score: -2742
+
+turn #7
+Attacker
+move from A3 to A2
+Best move: A1 A2
+Best score: 9
+Worst move: A1 A1
+Worst score: 2766
+
+turn #8
+Defender
+move from A1 to A2
+Best move: A3 A2
+Best score: 27
+Worst move: E4 E4
+Worst score: -2733
+
+turn #9
+Attacker
+move from A3 to A2
+Best move: A1 A2
+Best score: 18
+Worst move: A1 A1
+Worst score: 2775
+
+turn #10
+Defender
+move from A1 to A2
+Best move: A3 A2
+Best score: 36
+Worst move: E4 E4
+Worst score: -2724
+
+turn #11
+Attacker
+move from A3 to A2
+Best move: A1 A2
+Best score: 27
+Worst move: A1 A1
+Worst score: 2784
+
+turn #12
+Defender
+move from A1 to A2
+Best move: D3 C3
+Best score: 27
+Worst move: E4 E4
+Worst score: -2715
+
+turn #13
+Attacker
+move from D3 to C3
+New board configuration:
+Next player: Attacker
+Turns played: 12
+
+    0   1   2   3   4  
+A:  .  dA9 dT3  .   .  
+B: dT9 dP9 dF9  .   .  
+C: dF9  .   .  aF9  .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: 18
+Worst move: A1 A1
+Worst score: 2775
+
+turn #14
+Defender
+move from A1 to A2
+Best move: C3 B3
+Best score: 18
+Worst move: E4 E4
+Worst score: -2718
+
+turn #15
+Attacker
+move from C3 to B3
+New board configuration:
+Next player: Attacker
+Turns played: 14
+
+    0   1   2   3   4  
+A:  .  dA9 dT4  .   .  
+B: dT9 dP9 dF9 aF9  .  
+C: dF9  .   .   .   .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: 9
+Worst move: A1 A1
+Worst score: 2766
+
+turn #16
+Defender
+move from A1 to A2
+Best move: B3 B2
+Best score: 9
+Worst move: E4 E4
+Worst score: -2727
+
+turn #17
+Attacker
+move from B3 to B2
+Best move: A1 A2
+Best score: 0
+Worst move: A1 A1
+Worst score: 2757
+
+turn #18
+Defender
+move from A1 to A2
+Best move: B3 B2
+Best score: 0
+Worst move: E4 E4
+Worst score: -2736
+
+turn #19
+Attacker
+move from B3 to B2
+Best move: A1 A2
+Best score: -9
+Worst move: A1 A1
+Worst score: 2748
+
+turn #20
+Defender
+move from A1 to A2
+Best move: B3 B3
+Best score: -6
+Worst move: E4 E4
+Worst score: -2745
+
+turn #21
+Attacker
+move from B3 to B3
+Best move: A1 A2
+Best score: -15
+Worst move: A1 A1
+Worst score: 2742
+
+turn #22
+Defender
+move from A1 to A2
+Best move: D4 C4
+Best score: -15
+Worst move: E4 E4
+Worst score: -2751
+
+turn #23
+Attacker
+move from D4 to C4
+New board configuration:
+Next player: Attacker
+Turns played: 22
+
+    0   1   2   3   4  
+A:  .  dA9 dT6  .   .  
+B: dT9 dP9 dF5  .   .  
+C: dF9  .   .   .  aV9 
+D:  .   .   .   .   .  
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: -24
+Worst move: A1 A1
+Worst score: 2733
+
+turn #24
+Defender
+move from A1 to A2
+Best move: C4 B4
+Best score: -24
+Worst move: E4 E4
+Worst score: -2742
+
+turn #25
+Attacker
+move from C4 to B4
+New board configuration:
+Next player: Attacker
+Turns played: 24
+
+    0   1   2   3   4  
+A:  .  dA9 dT7  .   .  
+B: dT9 dP9 dF5  .  aV9 
+C: dF9  .   .   .   .  
+D:  .   .   .   .   .  
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: -33
+Worst move: A1 A1
+Worst score: 2724
+
+turn #26
+Defender
+move from A1 to A2
+Best move: B4 A4
+Best score: -33
+Worst move: E4 E4
+Worst score: -2751
+
+turn #27
+Attacker
+move from B4 to A4
+New board configuration:
+Next player: Attacker
+Turns played: 26
+
+    0   1   2   3   4  
+A:  .  dA9 dT8  .  aV9 
+B: dT9 dP9 dF5  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .   .   .  
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A1 A2
+Best score: -42
+Worst move: A1 A1
+Worst score: 2715
+
+turn #28
+Defender
+move from A1 to A2
+Best move: A4 A3
+Best score: -42
+Worst move: E4 E4
+Worst score: -2760
+
+turn #29
+Attacker
+move from A4 to A3
+New board configuration:
+Next player: Attacker
+Turns played: 28
+
+    0   1   2   3   4  
+A:  .  dA9 dT9 aV9  .  
+B: dT9 dP9 dF5  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .   .   .  
+E:  .   .  aP9 aV9 aA9 
+
+Best move: A2 B2
+Best score: -51
+Worst move: A1 A1
+Worst score: 2706
+
+turn #30
+Defender
+move from A2 to B2
+Best move: A3 A2
+Best score: -51
+Worst move: E4 E4
+Worst score: -2769
+
+turn #31
+Attacker
+move from A3 to A2
+Best move: A1 A2
+Best score: -60
+Worst move: A1 A1
+Worst score: 2697
+
+turn #32
+Defender
+move from A1 to A2
+Best move: A3 A2
+Best score: -51
+Worst move: E4 E4
+Worst score: -2778
+
+turn #33
+Attacker
+move from A3 to A2
+Best move: A1 A2
+Best score: -51
+Worst move: A1 A1
+Worst score: 2679
+
+turn #34
+Defender
+move from A1 to A2
+New board configuration:
+Next player: Defender
+Turns played: 33
+
+    0   1   2   3   4  
+A:  .   .  dA9  .   .  
+B: dT9 dP9 dF8  .   .  
+C: dF9  .   .   .   .  
+D:  .   .   .   .   .  
+E:  .   .  aP9 aV9 aA9 
+
+Best move: E2 D2
+Best score: -51
+Worst move: E4 E4
+Worst score: -2769
+
+turn #35
+Attacker
+move from E2 to D2
+New board configuration:
+Next player: Attacker
+Turns played: 34
+
+    0   1   2   3   4  
+A:  .   .  dA9  .   .  
+B: dT9 dP9 dF8  .   .  
+C: dF9  .   .   .   .  
+D:  .   .  aP9  .   .  
+E:  .   .   .  aV9 aA9 
+
+Best move: A2 A3
+Best score: -51
+Worst move: A2 A2
+Worst score: 2661
+
+turn #36
+Defender
+move from A2 to A3
+New board configuration:
+Next player: Defender
+Turns played: 35
+
+    0   1   2   3   4  
+A:  .   .   .  dA9  .  
+B: dT9 dP9 dF8  .   .  
+C: dF9  .   .   .   .  
+D:  .   .  aP9  .   .  
+E:  .   .   .  aV9 aA9 
+
+Best move: D2 C2
+Best score: -51
+Worst move: E4 E4
+Worst score: -2769
+
+turn #37
+Attacker
+move from D2 to C2
+New board configuration:
+Next player: Attacker
+Turns played: 36
+
+    0   1   2   3   4  
+A:  .   .   .  dA9  .  
+B: dT9 dP9 dF8  .   .  
+C: dF9  .  aP9  .   .  
+D:  .   .   .   .   .  
+E:  .   .   .  aV9 aA9 
+
+Best move: A3 B3
+Best score: -51
+Worst move: A3 A3
+Worst score: 2655
+
+turn #38
+Defender
+move from A3 to B3
+New board configuration:
+Next player: Defender
+Turns played: 37
+
+    0   1   2   3   4  
+A:  .   .   .   .   .  
+B: dT9 dP9 dF8 dA9  .  
+C: dF9  .  aP9  .   .  
+D:  .   .   .   .   .  
+E:  .   .   .  aV9 aA9 
+
+Best move: C2 C2
+Best score: 534
+Worst move: E4 E4
+Worst score: -2769
+
+turn #39
+Attacker
+move from C2 to C2
+Best move: B0 B1
+Best score: 528
+Worst move: B3 B3
+Worst score: 2640
+
+turn #40
+Defender
+move from B0 to B1
+Best move: E3 D3
+Best score: 528
+Worst move: E4 E4
+Worst score: -2190
+
+turn #41
+Attacker
+move from E3 to D3
+New board configuration:
+Next player: Attacker
+Turns played: 40
+
+    0   1   2   3   4  
+A:  .   .   .   .   .  
+B: dT9 dP9 dF6 dA7  .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aV9  .  
+E:  .   .   .   .  aA9 
+
+Best move: B0 A0
+Best score: 528
+Worst move: B3 B3
+Worst score: 2634
+
+turn #42
+Defender
+move from B0 to A0
+New board configuration:
+Next player: Defender
+Turns played: 41
+
+    0   1   2   3   4  
+A: dT9  .   .   .   .  
+B:  .  dP9 dF6 dA7  .  
+C: dF9  .   .   .   .  
+D:  .   .   .  aV9  .  
+E:  .   .   .   .  aA9 
+
+Best move: D3 C3
+Best score: 528
+Worst move: E4 E4
+Worst score: -2190
+
+turn #43
+Attacker
+move from D3 to C3
+New board configuration:
+Next player: Attacker
+Turns played: 42
+
+    0   1   2   3   4  
+A: dT9  .   .   .   .  
+B:  .  dP9 dF6 dA7  .  
+C: dF9  .   .  aV9  .  
+D:  .   .   .   .   .  
+E:  .   .   .   .  aA9 
+
+Best move: A0 B0
+Best score: 528
+Worst move: B3 B3
+Worst score: 2616
+
+turn #44
+Defender
+move from A0 to B0
+New board configuration:
+Next player: Defender
+Turns played: 43
+
+    0   1   2   3   4  
+A:  .   .   .   .   .  
+B: dT9 dP9 dF6 dA7  .  
+C: dF9  .   .  aV9  .  
+D:  .   .   .   .   .  
+E:  .   .   .   .  aA9 
+
+Best move: C3 B3
+Best score: 2565
+Worst move: E4 E4
+Worst score: -2172
+
+turn #45
+Attacker
+move from C3 to B3
+Attacker wins in 45 turns
+
+Final board configuration:
+Next player: Defender
+Turns played: 45
+
+    0   1   2   3   4  
+A:  .   .   .   .   .  
+B: dT9 dP9 dF6  .   .  
+C: dF9  .   .  aV2  .  
+D:  .   .   .   .   .  
+E:  .   .   .   .  aA9 
+
