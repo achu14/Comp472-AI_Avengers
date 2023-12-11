@@ -231,12 +231,15 @@ class Options:
     min_depth: int | None = 2
     max_time: float | None = 5.0
     game_type: GameType = GameType.AttackerVsDefender
+    game_type: GameType = GameType.AttackerVsComp
+    game_type: GameType = GameType.CompVsDefender
+    game_type: GameType = GameType.CompVsComp
     alpha_beta: bool = True
-    max_turns: int | None = 100
+    max_turns: int | None = 2
     randomize_moves: bool = True
     broker: str | None = None
     disable_alpha_beta: bool = False
-    heuristic: int | None = 0
+    heuristic: int | None = 1
 
 
 ##############################################################################################################
@@ -248,7 +251,6 @@ class Stats:
     total_seconds: float = 0.0
     node_count: int = 0
     children_sum: int = 0
-
 
 
 ##############################################################################################################
@@ -290,14 +292,14 @@ class Game:
         self.game_trace.append(f"max number of turns: {self.options.max_turns}")
         self.game_trace.append(f"alpha-beta: {'on' if self.options.alpha_beta else 'off'}")
         self.game_trace.append(
-            f"player 1: {self.game_player_one_type()} & player 2: {self.game_player_two_type()}")
+            f"Attacker: {self.game_player_one_type()} & Defender: {self.game_player_two_type()}")
         self.game_trace.append("Initial board configuration:")
         self.game_trace.append(self.to_string())
 
     def game_player_one_type(self) -> str:
         """Returns the type of player one."""
         return "Human" if self.options.game_type == GameType.AttackerVsDefender or self.options.game_type == GameType.AttackerVsComp else "Computer"
-    
+
     def game_player_two_type(self) -> str:
         """Returns the type of player two."""
         return "Human" if self.options.game_type == GameType.AttackerVsDefender or self.options.game_type == GameType.CompVsDefender else "Computer"
@@ -363,7 +365,8 @@ class Game:
 
         isValid = (
                 self.is_dst_valid_square(unit, src, dst) and  # Is the destination square a valid square to move to
-                self.is_moving_unit_allowed_to_move(unit, src, dst) and # Is the unit allowed to move to the destination square
+                self.is_moving_unit_allowed_to_move(unit, src,
+                                                    dst) and  # Is the unit allowed to move to the destination square
                 self.can_dst_unit_be_targeted(unit, dst)  # Can the unit on the destination square be targeted
         )
 
@@ -371,7 +374,7 @@ class Game:
             self.log(f"Move is not valid: {mv.to_string()}")
 
         return isValid
-    
+
     def is_self_destruct_move(self, src: Coord, dst: Coord) -> bool:
         return src.row == dst.row and src.col == dst.col
 
@@ -379,7 +382,7 @@ class Game:
         if self.is_unit_tech_or_virus(unit):  # Virus and tech can move in all directions
             sameCol = (src.col == dst.col);
             sameRow = (src.row == dst.row);
-           
+
             oneSquareUp = src.row == dst.row + 1 and sameCol;
             oneSquareDown = (src.row + 1 == dst.row) and sameCol;
             oneSquareLeft = (dst.col == src.col + 1) and sameRow;
@@ -390,11 +393,11 @@ class Game:
             left = oneSquareLeft and sameRow
             right = oneSquareRight and sameRow
 
-            return up or down or left or right 
+            return up or down or left or right
 
         player = unit.player
         if player == Player.Attacker:
-            
+
             # If source is an attacker, then it can only move up or left
             if (src.row == dst.row + 1 and src.col == dst.col) or \
                     (src.col == dst.col + 1 and src.row == dst.row):
@@ -629,9 +632,9 @@ class Game:
     def is_finished(self) -> bool:
         # Game ends if 100 moves have been played or if any AI is destroyed
         if self.turns_played >= self.options.max_turns:
-            self.log("Max number of turns (100) has passed")
-        return self.turns_played >= 100 or not self._attacker_has_ai or not self._defender_has_ai
-    
+            self.log(f"Max number of turns ({self.options.max_turns}) has passed")
+        return self.turns_played >= self.options.max_turns or not self._attacker_has_ai or not self._defender_has_ai
+
     def write_game_trace_to_file(self, filename: str):
         with open(filename, 'w') as file:
             for line in self.game_trace:
@@ -659,7 +662,8 @@ class Game:
             return Player.Attacker
         # If neither AI is destroyed and 10 turns have been played, the defender wins
         else:
-            self.game_trace.append(f"{Player.Defender.name} wins because max turns ({self.options.max_turns}) have passed")
+            self.game_trace.append(
+                f"{Player.Defender.name} wins because max turns ({self.options.max_turns}) have passed")
             self.game_trace.append(f"")
             self.game_trace.append("Final board configuration:")
             self.game_trace.append(self.to_string())
@@ -705,11 +709,11 @@ class Game:
                 self.game_trace.append(f"{k}:{self.stats.evaluations_per_depth[k]} ")
             self.game_trace.append(f"Cumulative evals % by depth: ")
             for k in sorted(self.stats.evaluations_per_depth.keys()):
-                percentage_per_depth = self.stats.evaluations_per_depth[k]/total_evals * 100
+                percentage_per_depth = self.stats.evaluations_per_depth[k] / total_evals * 100
                 self.game_trace.append(f"{k}:{percentage_per_depth}% ")
         self.game_trace.append(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
-    
+
     def get_best_move(self) -> CoordPair | None:
         """
         Suggests the next move using minimax alpha-beta pruning.
@@ -720,14 +724,15 @@ class Game:
         isMinimizingPlayer = not isMaximizingPlayer
         best_move = None
         best_score = MIN_HEURISTIC_SCORE if isMaximizingPlayer else MAX_HEURISTIC_SCORE
-       
+
         children_sum = 0
         self.stats.node_count += 1
         for move in self.move_candidates():
             children_sum += 1
             new_state = self.clone()
             new_state.perform_move(move)
-            score = self.minimax(new_state, self.options.max_depth, isMinimizingPlayer, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE, start_time)
+            score = self.minimax(new_state, self.options.max_depth, isMinimizingPlayer, MIN_HEURISTIC_SCORE,
+                                 MAX_HEURISTIC_SCORE, start_time)
             if isMaximizingPlayer and score > best_score:
                 best_score = score
                 best_move = move
@@ -738,24 +743,24 @@ class Game:
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.game_trace.append(f"time it took to find the best move: {elapsed_seconds} seconds")
         self.game_trace.append(f"heuristic score: {best_score}")
-        self.game_trace.append(f"average branching factor: {self.stats.children_sum/self.stats.node_count}")
+        self.game_trace.append(f"average branching factor: {self.stats.children_sum / self.stats.node_count}")
 
         return best_move
-    
-    def get_heuristic_value(self) -> int:
-            """
-            Returns the heuristic value of the current game state based on the selected heuristic option.
-            """
-            if self.options.heuristic == 0:
-                return self.heuristic_e0()
-            elif self.options.heuristic == 1:
-                return self.heuristic_e1()
-            elif self.options.heuristic == 2:
-                return self.heuristic_e2()
-            else:
-                raise ValueError(f"Invalid heuristic option: {self.options.heuristic}")
 
-    def minimax(self, state : Game, depth : int, maximizing_player : bool, alpha : int, beta : int, time : datetime):
+    def get_heuristic_value(self) -> int:
+        """
+        Returns the heuristic value of the current game state based on the selected heuristic option.
+        """
+        if self.options.heuristic == 0:
+            return self.heuristic_e0()
+        elif self.options.heuristic == 1:
+            return self.heuristic_e1()
+        elif self.options.heuristic == 2:
+            return self.heuristic_e2()
+        else:
+            raise ValueError(f"Invalid heuristic option: {self.options.heuristic}")
+
+    def minimax(self, state: Game, depth: int, maximizing_player: bool, alpha: int, beta: int, time: datetime):
         """
         Implementation of the minimax algorithm with alpha-beta pruning.
 
@@ -773,14 +778,16 @@ class Game:
         elapsed_seconds = (datetime.now() - time).total_seconds()
         if elapsed_seconds >= self.options.max_time - 0.2:
             currentDepth = self.options.max_depth - (depth)
-            self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
+            self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[
+                                                                 currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
             return self.get_heuristic_value()
 
         if depth == 0 or state.is_finished():
             currentDepth = self.options.max_depth - (depth)
-            self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
+            self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[
+                                                                 currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
             return state.get_heuristic_value()
-       
+
         playerTurn = Player.Attacker if maximizing_player else Player.Defender
 
         if maximizing_player:
@@ -795,7 +802,8 @@ class Game:
                 new_state.perform_move(move)
                 value = self.minimax(new_state, depth - 1, False, alpha, beta, time)
                 currentDepth = self.options.max_depth - (depth)
-                self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
+                self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[
+                                                                     currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
                 best_value = max(best_value, value)
                 if not self.options.disable_alpha_beta:
                     alpha = max(alpha, best_value)
@@ -808,14 +816,15 @@ class Game:
             self.stats.node_count += 1
             children_sum = 0
 
-            for move in  state.move_candidates():
+            for move in state.move_candidates():
                 children_sum += 1
                 new_state = state.clone()
                 new_state.next_player = playerTurn
                 new_state.perform_move(move)
                 value = self.minimax(new_state, depth - 1, True, alpha, beta, time)
                 currentDepth = self.options.max_depth - (depth)
-                self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
+                self.stats.evaluations_per_depth[currentDepth] = self.stats.evaluations_per_depth[
+                                                                     currentDepth] + 1 if currentDepth in self.stats.evaluations_per_depth else 1
                 best_value = min(best_value, value)
                 if not self.options.disable_alpha_beta:
                     beta = min(beta, best_value)
@@ -823,7 +832,7 @@ class Game:
                         break  # Alpha-beta pruning
             self.stats.children_sum += children_sum
             return best_value
-        
+
     def heuristic_e0(self):
         """Calculates the heuristic value for e0.
 
@@ -865,7 +874,7 @@ class Game:
         e0 = p1_score - p2_score
 
         return e0
-    
+
     def heuristic_e1(self):
         """ Calculates the heuristic value for e1. """
         # weights for our heuristic components
@@ -961,7 +970,7 @@ class Game:
         e1 = w1 * h_ai + w2 * h_control + w3 * virus_near_ai + h_tech_support + h_victory
 
         return e1 if player == Player.Attacker else -e1
-        
+
     def heuristic_e2(self) -> int:
         attacker_ai = None
         defender_ai = None
@@ -977,7 +986,7 @@ class Game:
         if attacker_ai is None or defender_ai is None:
             # The AI units are not on the board; the game is over
             return MAX_HEURISTIC_SCORE if attacker_ai else -MAX_HEURISTIC_SCORE
-        
+
         # Weights for each heuristic component
         weights = {
             "ai_healths_score": 5,
@@ -986,22 +995,23 @@ class Game:
             "end_of_game_score": 1
         }
 
-        moves_for_virus_to_reach_ai_score = self.moves_for_virus_to_reach_ai() # Calculate the heuristic score based on the number of moves required for the Virus to reach the AI
-        ai_healths_score = self.calculate_ai_healths_score(attacker_ai, defender_ai) # Calculate the heuristic score based on the health of AI units
-        total_units_health_score = self.calculate_total_units_health_score(attacker_ai, defender_ai) # Calculate the heuristic score based on the total health of units
-        end_of_game_score = self.calculate_end_of_game_score() # Calculate the heuristic score based on the end of the game
+        moves_for_virus_to_reach_ai_score = self.moves_for_virus_to_reach_ai()  # Calculate the heuristic score based on the number of moves required for the Virus to reach the AI
+        ai_healths_score = self.calculate_ai_healths_score(attacker_ai,
+                                                           defender_ai)  # Calculate the heuristic score based on the health of AI units
+        total_units_health_score = self.calculate_total_units_health_score(attacker_ai,
+                                                                           defender_ai)  # Calculate the heuristic score based on the total health of units
+        end_of_game_score = self.calculate_end_of_game_score()  # Calculate the heuristic score based on the end of the game
 
         # Combine scores with weights
         total_score = (
-            weights["total_units_health"] * total_units_health_score + 
-            weights["moves_for_virus_to_reach_ai"] * moves_for_virus_to_reach_ai_score + 
-            weights["ai_healths_score"] * ai_healths_score + 
-            weights["end_of_game_score"] * end_of_game_score
+                weights["total_units_health"] * total_units_health_score +
+                weights["moves_for_virus_to_reach_ai"] * moves_for_virus_to_reach_ai_score +
+                weights["ai_healths_score"] * ai_healths_score +
+                weights["end_of_game_score"] * end_of_game_score
         )
 
-
         return total_score
-    
+
     def calculate_end_of_game_score(self) -> int:
         # Calculate the heuristic score based on the end of the game
         winner = self.has_winner()
@@ -1012,7 +1022,7 @@ class Game:
             return -MAX_HEURISTIC_SCORE
         else:
             return 0
-    
+
     def calculate_total_units_health_score(self) -> int:
         # Calculate the heuristic score based on the total health of units
         attacker_health = 0
@@ -1023,11 +1033,11 @@ class Game:
 
         for coord, unit in self.player_units(Player.Defender):
             defender_health += unit.health
-        
+
         score = attacker_health - defender_health
 
         return score
-    
+
     def calculate_ai_healths_score(self, attacker_ai: Unit, defender_ai: Unit) -> int:
         # Calculate the heuristic score based on the health of AI units
         attacker_ai_health = attacker_ai.health
@@ -1036,7 +1046,7 @@ class Game:
         score = attacker_ai_health - defender_ai_health
 
         return score
-    
+
     def moves_for_virus_to_reach_ai(self) -> int:
         # Find the positions of the Virus and the defender's AI
         virus_position = None
@@ -1056,12 +1066,12 @@ class Game:
 
         if distance == -1:
             return -5
-        
+
         # Calculate the score based on the number of moves required
         score = 5 - distance
 
         return score
-    
+
     def shortest_distance(self, start, end):
         # Define the possible movements: up, down, left, right
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
@@ -1084,13 +1094,13 @@ class Game:
                 new_x, new_y = x + dx, y + dy
 
                 # Check if the new position is valid and not visited
-                if 0 <= new_x < rows and 0 <= new_y < cols and self.board[new_x][new_y] == 0 and (new_x, new_y) not in visited:
+                if 0 <= new_x < rows and 0 <= new_y < cols and self.board[new_x][new_y] == 0 and (
+                new_x, new_y) not in visited:
                     queue.append(((new_x, new_y), distance + 1))
                     visited.add((new_x, new_y))
 
         # If the end point is not reachable, -1 to indicate unreachable
         return -1
-    
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
@@ -1140,32 +1150,61 @@ class Game:
         except Exception as error:
             print(f"Broker error: {error}")
         return None
-    
+
     def log(self, *args):
         """Log a message to the console."""
         if self.debug:
             print(*args)
 
 
-
 ##############################################################################################################
 
 def main():
+    # Prompt for inputs
+    default_max_turns = input("Enter the max number of turns: ")
+    default_max_depth = input("Enter the max depth: ")
+    default_max_time = input("Enter the max time [in seconds]: ")
+    default_heuristic = input("Enter the heuristic number [0|1|2]: ")
+    default_alpha_beta_num = input("Is alpha beta on or off? [on=1|off=0]: ")
+    default_game_type = input("Enter the game type [auto|attacker|defender|manual]: ")
+    default_broker = input("Enter broker command: ")
+
+    # Convert inputs to appropriate types
+    default_max_turns = int(default_max_turns)
+    default_max_depth = int(default_max_depth)
+    default_heuristic = int(default_heuristic)
+    default_max_time = float(default_max_time)
+    default_alpha_beta_num = int(default_alpha_beta_num)
+
+    if default_alpha_beta_num == 0:
+        default_alpha_beta = False
+    else:
+        default_alpha_beta = True
+
+    if default_broker == "no" or "No":
+        default_broker = None
+    else:
+        default_broker = default_broker
+
     # parse command line arguments
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--max_depth', type=int, help='maximum search depth')
-    parser.add_argument('--max_time', type=float, help='maximum search time')
-    parser.add_argument('--max_turns', type=float, help='maximum number of turn for a game')
-    parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
-    parser.add_argument('--disable_alpha_beta', type=bool, default=False, help='disable alpha beta pruning')
-    parser.add_argument('--heuristic', type=int, help='heuristic function: e0|e1|e2')
-    parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--max_depth', type=int, default=default_max_depth, help='maximum search depth')
+    parser.add_argument('--disable_alpha_beta', type=bool, default=default_alpha_beta,
+                        help='disable alpha beta pruning')
+    parser.add_argument('--heuristic', type=int, default=default_heuristic, help='heuristic function: e0|e1|e2')
+    # parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--broker', type=str, default=default_broker, help='play via a game broker')
+    parser.add_argument('--max_time', type=float, default=default_max_time, help='maximum search time')
+    parser.add_argument('--max_turns', type=float, default=default_max_turns, help='maximum number of turns for a game')
+    parser.add_argument('--game_type', type=str, default=default_game_type,
+                        help='game type: auto|attacker|defender|manual')
+
     args = parser.parse_args()
 
     # Construct the file name
-    b_value = str(args.disable_alpha_beta).lower() if not args.disable_alpha_beta else 'true'
+    b_value = str(args.disable_alpha_beta).lower() if not not args.disable_alpha_beta else 'true'
     t_value = str(args.max_time) if args.max_time else 'off'
     m_value = str(args.max_turns) if args.max_turns else '100'
 
@@ -1178,7 +1217,7 @@ def main():
         game_type = GameType.CompVsDefender
     elif args.game_type == "manual":
         game_type = GameType.AttackerVsDefender
-    elif args.game_type == "computer":
+    elif args.game_type == "auto":
         game_type = GameType.CompVsComp
     else:
         game_type = GameType.AttackerVsDefender
