@@ -1,8 +1,7 @@
 # Comp472-Project
 AI Wargame Project Description
 
-a 2-player game played by an attacker (a) and a defender (d) on a 5 × 5 board. 
-A demo of the game is available at https://users.encs.concordia.ca/∼kosseim/COMP472Fall2023/
+a 2-player game played by an attacker (a) and a defender (d) on a 5 × 5 board.
 
 Each player has 6 units on the board. These units can be of different types:
 AI (A) each player has only 1 AI unit. The goal of the game is to destroy the opponent’s AI.
